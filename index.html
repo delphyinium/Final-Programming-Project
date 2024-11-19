@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>The Infinite Library</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game"></div>
+
+    <!-- Volume Control -->
+    <div id="volume-control">
+        <label for="volumeRange">Music Volume</label>
+        <input type="range" id="volumeRange" min="0" max="1" step="0.01" value="0.5">
+    </div>
+
+    <!-- Ambient Audio -->
+    <audio id="ambientAudio" src="audio/ambient.mp3" loop></audio>
+
+    <!-- Negative Sound Effect -->
+    <audio id="negativeAudio" src="audio/negative.wav"></audio>
+
+    <script src="script.js"></script>
+</body>
+</html>
