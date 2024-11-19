@@ -320,7 +320,6 @@ function playNegativeSound() {
     negativeAudio.volume = 0.7;
     negativeAudio.play();
 }
-
 // Handle the initial choice
 function handleInitialChoice() {
     getUserInput((choice) => {
@@ -350,6 +349,7 @@ Do you 'pick up' the key or 'ignore' it?`);
     });
 }
 
+// Modified to prevent dead end when ignoring the key
 function handleKeyChoice(choice) {
     if (choice.includes('pick up')) {
         messages.push(`You pick up the key, feeling its cold weight in your hand. It seems to hum with a faint energy.`);
@@ -368,9 +368,9 @@ Do you 'enter' the door or 'continue' down the aisle?`);
         typeNextMessage(() => {
             messages.push(`The aisle stretches endlessly. Shadows seem to move just out of sight.
 
-Do you 'investigate' the shadows or 'keep moving'?`);
+Do you 'investigate' the shadows, 'return' to the key, or 'keep moving'?`);
             typeNextMessage(() => {
-                getUserInput(handleShadowInvestigation);
+                getUserInput(handleExtendedChoice);
             });
         });
     } else {
@@ -381,6 +381,23 @@ Do you 'investigate' the shadows or 'keep moving'?`);
     }
 }
 
+function handleExtendedChoice(choice) {
+    if (choice.includes('return')) {
+        messages.push(`You return to where the key was lying. The ornate key still rests on the floor.
+
+Do you 'pick up' the key or 'ignore' it?`);
+        typeNextMessage(() => {
+            getUserInput(handleKeyChoice);
+        });
+    } else if (choice.includes('investigate') || choice.includes('keep')) {
+        handleShadowInvestigation(choice);
+    } else {
+        messages.push(`Do you 'investigate' the shadows, 'return' to the key, or 'keep moving'?`);
+        typeNextMessage(() => {
+            getUserInput(handleExtendedChoice);
+        });
+    }
+}
 function handleAisleDoorChoice(choice) {
     if (choice.includes('enter')) {
         gameState.visitedScenes.orbRoom = true;
@@ -412,18 +429,23 @@ Do you 'confront' the shadow or 'retreat'?`);
     }
 }
 
+// Modified to prevent softlock in the orb room
 function handleOrbChoice(choice) {
     if (choice.includes('take')) {
         messages.push(`As you grasp the orb, a surge of memories floods your mind—some joyful, others painful. The weight of knowledge is overwhelming.`);
         gameState.cluesFound.push('forbiddenKnowledge');
         typeNextMessage(() => {
-            messages.push(`The room begins to dissolve, and you find yourself back in the library, but everything feels different.`);
-            typeNextMessage(checkForEnding);
+            messages.push(`The room begins to dissolve, and you find yourself back in the library, but everything feels different.
+
+Do you wish to 'explore' further or 'rest' here?`);
+            typeNextMessage(() => {
+                getUserInput(handlePostOrbChoice);
+            });
         });
     } else if (choice.includes('leave')) {
         messages.push(`You decide it's best not to disturb the orb. As you turn to leave, the floating books rearrange themselves, forming a pathway.`);
         typeNextMessage(() => {
-            messages.push(`Do you 'follow' the book path or 'return' to the aisle?`);
+            messages.push(`Do you 'follow' the book path, 'return' to the orb, or 'exit' to the main aisle?`);
             typeNextMessage(() => {
                 getUserInput(handleBookPathChoice);
             });
@@ -436,29 +458,76 @@ function handleOrbChoice(choice) {
     }
 }
 
+// New function to handle post-orb choices
+function handlePostOrbChoice(choice) {
+    if (choice.includes('explore')) {
+        messages.push(`With new understanding, you venture deeper into the library's mysteries.`);
+        typeNextMessage(() => {
+            handleShadowInvestigation('investigate');
+        });
+    } else if (choice.includes('rest')) {
+        handleAlternativeEndingChoice(choice);
+    } else {
+        messages.push(`Do you wish to 'explore' further or 'rest' here?`);
+        typeNextMessage(() => {
+            getUserInput(handlePostOrbChoice);
+        });
+    }
+}
+
+// Modified to prevent dead end in book path
 function handleBookPathChoice(choice) {
     if (choice.includes('follow')) {
         messages.push(`You follow the path of books, which leads you to a hidden chamber filled with artifacts from your past.`);
         gameState.cluesFound.push('personalArtifacts');
         typeNextMessage(() => {
-            messages.push(`You feel a deep connection to this place, as if it's a part of you.`);
-            typeNextMessage(checkForEnding);
+            messages.push(`You feel a deep connection to this place, as if it's a part of you.
+
+Do you wish to 'examine' the artifacts, 'leave' the chamber, or 'rest' here?`);
+            typeNextMessage(() => {
+                getUserInput(handleArtifactChoice);
+            });
         });
     } else if (choice.includes('return')) {
-        messages.push(`You decide to return to the aisle, but the door has vanished. You're trapped.`);
-        playNegativeSound();
+        messages.push(`You return to examine the orb more closely.`);
         typeNextMessage(() => {
-            messages.push(`A shadowy figure appears, blocking your path.`);
-            typeNextMessage(triggerFinalConfrontation);
+            getUserInput(handleOrbChoice);
+        });
+    } else if (choice.includes('exit')) {
+        messages.push(`You make your way back to the main aisle of the library.`);
+        typeNextMessage(() => {
+            handleShadowInvestigation('investigate');
         });
     } else {
-        messages.push(`Do you 'follow' the book path or 'return' to the aisle?`);
+        messages.push(`Do you 'follow' the book path, 'return' to the orb, or 'exit' to the main aisle?`);
         typeNextMessage(() => {
             getUserInput(handleBookPathChoice);
         });
     }
 }
 
+// New function to handle artifact room choices
+function handleArtifactChoice(choice) {
+    if (choice.includes('examine')) {
+        messages.push(`As you examine the artifacts, memories begin to surface. Each object tells a story from your past.`);
+        gameState.cluesFound.push('memoryRestoration');
+        typeNextMessage(checkForEnding);
+    } else if (choice.includes('leave')) {
+        messages.push(`You decide to leave the chamber and return to exploring the library.`);
+        typeNextMessage(() => {
+            handleShadowInvestigation('investigate');
+        });
+    } else if (choice.includes('rest')) {
+        handleAlternativeEndingChoice(choice);
+    } else {
+        messages.push(`Do you wish to 'examine' the artifacts, 'leave' the chamber, or 'rest' here?`);
+        typeNextMessage(() => {
+            getUserInput(handleArtifactChoice);
+        });
+    }
+}
+
+// Modified to prevent dead end in shadow encounter
 function handleShadowConfrontation(choice) {
     if (choice.includes('confront')) {
         messages.push(`You gather your courage and step toward the shadow. "What do you want?" you demand. The shadow smiles, "Only to help you remember."`);
@@ -466,29 +535,68 @@ function handleShadowConfrontation(choice) {
         typeNextMessage(() => {
             messages.push(`The shadow gestures, and a doorway appears. "Through there lies your truth."`);
             typeNextMessage(() => {
-                messages.push(`Do you 'enter' the doorway or 'stay' where you are?`);
+                messages.push(`Do you 'enter' the doorway, 'question' the shadow further, or 'retreat'?`);
                 typeNextMessage(() => {
-                    getUserInput(handleDoorwayChoice);
+                    getUserInput(handleExpandedDoorwayChoice);
                 });
             });
         });
     } else if (choice.includes('retreat')) {
-        messages.push(`Fear overtakes you, and you turn to run. The shadows around you deepen, and you become hopelessly lost.`);
-        gameState.avoidedShadows++;
-        playNegativeSound();
+        messages.push(`You step back, but the shadow doesn't pursue. It remains, waiting patiently.`);
         typeNextMessage(() => {
-            messages.push(`Exhausted, you collapse to the floor. When you awaken, you find yourself back at the entrance of the library.`);
+            messages.push(`Do you wish to 'reconsider' your choice, 'explore' elsewhere, or 'rest' here?`);
             typeNextMessage(() => {
-                messages.push(`Do you wish to 'explore' further or 'rest' here?`);
-                typeNextMessage(() => {
-                    getUserInput(handleAlternativeEndingChoice);
-                });
+                getUserInput(handleRetreatChoice);
             });
         });
     } else {
         messages.push(`Do you 'confront' the shadow or 'retreat'?`);
         typeNextMessage(() => {
             getUserInput(handleShadowConfrontation);
+        });
+    }
+}
+
+// New function to handle expanded doorway choices
+function handleExpandedDoorwayChoice(choice) {
+    if (choice.includes('enter')) {
+        handleDoorwayChoice('enter');
+    } else if (choice.includes('question')) {
+        messages.push(`The shadow's form shifts as it speaks: "I am what remains of your memories, seeking to guide you back to wholeness."`);
+        typeNextMessage(() => {
+            messages.push(`Do you now wish to 'enter' the doorway or 'retreat'?`);
+            typeNextMessage(() => {
+                getUserInput(handleDoorwayChoice);
+            });
+        });
+    } else if (choice.includes('retreat')) {
+        handleDoorwayChoice('stay');
+    } else {
+        messages.push(`Do you 'enter' the doorway, 'question' the shadow further, or 'retreat'?`);
+        typeNextMessage(() => {
+            getUserInput(handleExpandedDoorwayChoice);
+        });
+    }
+}
+
+// New function to handle retreat choices
+function handleRetreatChoice(choice) {
+    if (choice.includes('reconsider')) {
+        messages.push(`You turn back to face the shadow once more.`);
+        typeNextMessage(() => {
+            handleShadowConfrontation('confront');
+        });
+    } else if (choice.includes('explore')) {
+        messages.push(`You choose to explore other parts of the library.`);
+        typeNextMessage(() => {
+            handleShadowInvestigation('investigate');
+        });
+    } else if (choice.includes('rest')) {
+        handleAlternativeEndingChoice(choice);
+    } else {
+        messages.push(`Do you wish to 'reconsider' your choice, 'explore' elsewhere, or 'rest' here?`);
+        typeNextMessage(() => {
+            getUserInput(handleRetreatChoice);
         });
     }
 }
@@ -521,26 +629,24 @@ function handleDoorwayChoice(choice) {
     }
 }
 
+// Modified to prevent shadow investigation dead ends
 function handleShadowInvestigation(choice) {
     if (choice.includes('investigate')) {
         messages.push(`You follow the moving shadows, which lead you to a hidden alcove. Inside, you find a journal with your name on it.`);
         gameState.cluesFound.push('personalJournal');
         gameState.visitedScenes.journalFound = true;
         typeNextMessage(() => {
-            messages.push(`Do you 'read' the journal or 'put it away'?`);
+            messages.push(`Do you 'read' the journal, 'explore' the alcove further, or 'return' to the main library?`);
             typeNextMessage(() => {
-                getUserInput(handleJournalChoice);
+                getUserInput(handleAlcoveChoice);
             });
         });
     } else if (choice.includes('keep moving')) {
-        messages.push(`You decide not to follow the shadows. The library seems to shift around you, and you find yourself back at the entrance.`);
+        messages.push(`You decide not to follow the shadows. The library seems to shift around you, offering different paths.`);
         typeNextMessage(() => {
-            messages.push(`A sense of déjà vu washes over you.`);
+            messages.push(`Do you wish to 'return' to investigate the shadows, 'explore' a different direction, or 'rest' here?`);
             typeNextMessage(() => {
-                messages.push(`Do you wish to 'explore' further or 'rest' here?`);
-                typeNextMessage(() => {
-                    getUserInput(handleAlternativeEndingChoice);
-                });
+                getUserInput(handleMovementChoice);
             });
         });
     } else {
@@ -551,34 +657,142 @@ function handleShadowInvestigation(choice) {
     }
 }
 
+// New function to handle alcove choices
+function handleAlcoveChoice(choice) {
+    if (choice.includes('read')) {
+        handleJournalChoice('read');
+    } else if (choice.includes('explore')) {
+        messages.push(`As you explore the alcove, you discover hidden compartments and mysterious artifacts.`);
+        gameState.cluesFound.push('hiddenArtifacts');
+        typeNextMessage(() => {
+            messages.push(`Do you wish to 'examine' the artifacts, 'return' to the journal, or 'leave' the alcove?`);
+            typeNextMessage(() => {
+                getUserInput(handleArtifactDiscovery);
+            });
+        });
+    } else if (choice.includes('return')) {
+        messages.push(`You step back into the main library, but remember the alcove's location.`);
+        typeNextMessage(continueExploration);
+    } else {
+        messages.push(`Do you 'read' the journal, 'explore' the alcove further, or 'return' to the main library?`);
+        typeNextMessage(() => {
+            getUserInput(handleAlcoveChoice);
+        });
+    }
+}
+
+// New function to handle movement choices
+function handleMovementChoice(choice) {
+    if (choice.includes('return')) {
+        messages.push(`You turn back to investigate the shadows you noticed earlier.`);
+        typeNextMessage(() => {
+            handleShadowInvestigation('investigate');
+        });
+    } else if (choice.includes('explore')) {
+        messages.push(`You choose a different path through the library.`);
+        typeNextMessage(continueExploration);
+    } else if (choice.includes('rest')) {
+        handleAlternativeEndingChoice(choice);
+    } else {
+        messages.push(`Do you wish to 'return' to investigate the shadows, 'explore' a different direction, or 'rest' here?`);
+        typeNextMessage(() => {
+            getUserInput(handleMovementChoice);
+        });
+    }
+}
+
+// New function to handle artifact discovery
+function handleArtifactDiscovery(choice) {
+    if (choice.includes('examine')) {
+        messages.push(`The artifacts resonate with personal significance, each one triggering fragments of memory.`);
+        gameState.cluesFound.push('artifactMemories');
+        typeNextMessage(checkForEnding);
+    } else if (choice.includes('return')) {
+        messages.push(`You turn your attention back to the journal.`);
+        typeNextMessage(() => {
+            handleJournalChoice('read');
+        });
+    } else if (choice.includes('leave')) {
+        messages.push(`You exit the alcove, returning to the main library.`);
+        typeNextMessage(continueExploration);
+    } else {
+        messages.push(`Do you wish to 'examine' the artifacts, 'return' to the journal, or 'leave' the alcove?`);
+        typeNextMessage(() => {
+            getUserInput(handleArtifactDiscovery);
+        });
+    }
+}
+
+// Modified to prevent journal dead end
 function handleJournalChoice(choice) {
     if (choice.includes('read')) {
         messages.push(`You open the journal, and as you read, memories flood back. You remember why you're here.`);
         gameState.cluesFound.push('memoryRestoration');
         typeNextMessage(() => {
-            messages.push(`A doorway appears, glowing softly.`);
+            messages.push(`A doorway appears, glowing softly. The journal remains in your hands.`);
             typeNextMessage(() => {
-                messages.push(`Do you 'enter' the doorway or 'stay' and explore more?`);
+                messages.push(`Do you 'enter' the doorway, 'continue reading', or 'explore' elsewhere?`);
                 typeNextMessage(() => {
-                    getUserInput(handleFinalDecision);
+                    getUserInput(handlePostJournalChoice);
                 });
             });
         });
     } else if (choice.includes('put')) {
-        messages.push(`You place the journal back. A feeling of regret lingers.`);
+        messages.push(`You place the journal back. A feeling of regret lingers, but the journal remains within reach.`);
         typeNextMessage(() => {
-            messages.push(`The shadows envelop you, and you become disoriented.`);
+            messages.push(`Do you wish to 'reconsider' and take the journal, 'explore' further, or 'rest' here?`);
             typeNextMessage(() => {
-                messages.push(`Do you wish to 'explore' further or 'rest' here?`);
-                typeNextMessage(() => {
-                    getUserInput(handleAlternativeEndingChoice);
-                });
+                getUserInput(handleJournalReconsideration);
             });
         });
     } else {
         messages.push(`Do you 'read' the journal or 'put it away'?`);
         typeNextMessage(() => {
             getUserInput(handleJournalChoice);
+        });
+    }
+}
+
+// New function to handle post-journal choices
+function handlePostJournalChoice(choice) {
+    if (choice.includes('enter')) {
+        handleFinalDecision('enter');
+    } else if (choice.includes('continue')) {
+        messages.push(`You delve deeper into the journal's pages, uncovering more memories.`);
+        gameState.cluesFound.push('deeperMemories');
+        typeNextMessage(checkForEnding);
+    } else if (choice.includes('explore')) {
+        messages.push(`You carefully store the journal and continue exploring the library.`);
+        gameState.inventory.push('journal');
+        typeNextMessage(() => {
+            handleShadowInvestigation('investigate');
+        });
+    } else {
+        messages.push(`Do you 'enter' the doorway, 'continue reading', or 'explore' elsewhere?`);
+        typeNextMessage(() => {
+            getUserInput(handlePostJournalChoice);
+        });
+    }
+}
+
+// New function to handle journal reconsideration
+function handleJournalReconsideration(choice) {
+    if (choice.includes('reconsider')) {
+        messages.push(`You return to the journal, reaching for it once more.`);
+        typeNextMessage(() => {
+            getUserInput(handleJournalChoice);
+        });
+    } else if (choice.includes('explore')) {
+        messages.push(`You leave the alcove but make a mental note of its location.`);
+        typeNextMessage(() => {
+            handleShadowInvestigation('investigate');
+        });
+    } else if (choice.includes('rest')) {
+        handleAlternativeEndingChoice(choice);
+    } else {
+        messages.push(`Do you wish to 'reconsider' and take the journal, 'explore' further, or 'rest' here?`);
+        typeNextMessage(() => {
+            getUserInput(handleJournalReconsideration);
         });
     }
 }
@@ -602,8 +816,12 @@ function handleShadowDecision(choice) {
     } else if (choice.includes('avoid')) {
         messages.push(`You step back, fear gripping you. The shadow's eyes glow briefly before it vanishes. The air grows colder, and the silence becomes oppressive.`);
         gameState.avoidedShadows++;
-        playNegativeSound();
-        typeNextMessage(faceObstacleAlone);
+        typeNextMessage(() => {
+            messages.push(`Do you wish to 'reconsider' your choice, 'proceed' alone, or 'wait' here?`);
+            typeNextMessage(() => {
+                getUserInput(handleAvoidanceChoice);
+            });
+        });
     } else {
         messages.push(`The shadow waits silently. Do you 'engage' with the shadow or 'avoid' it?`);
         typeNextMessage(() => {
@@ -612,141 +830,426 @@ function handleShadowDecision(choice) {
     }
 }
 
-// Proceed to the next section
+// New function to handle avoidance choices
+function handleAvoidanceChoice(choice) {
+    if (choice.includes('reconsider')) {
+        messages.push(`The shadow reappears, patient and understanding.`);
+        typeNextMessage(() => {
+            getUserInput(handleShadowDecision);
+        });
+    } else if (choice.includes('proceed')) {
+        faceObstacleAlone();
+    } else if (choice.includes('wait')) {
+        messages.push(`You decide to wait, gathering your thoughts.`);
+        typeNextMessage(() => {
+            messages.push(`Do you wish to 'reconsider' your choice or 'proceed' alone?`);
+            typeNextMessage(() => {
+                getUserInput(handleAvoidanceChoice);
+            });
+        });
+    } else {
+        messages.push(`Do you wish to 'reconsider' your choice, 'proceed' alone, or 'wait' here?`);
+        typeNextMessage(() => {
+            getUserInput(handleAvoidanceChoice);
+        });
+    }
+}
+
+// Proceed to the next section with more choices
 function proceedToNextSection() {
     messages.push(`Following the shadow's direction, you arrive at a grand hall filled with ornate mirrors. Each reflection shows you at different ages, wearing expressions of joy, sorrow, and anger.
 
-Do you 'approach' a mirror or 'look away'?`);
+Do you 'approach' a mirror, 'look away', or 'return' to the entrance?`);
     typeNextMessage(() => {
         getUserInput(handleMirrorChoice);
     });
 }
 
+// Modified to prevent mirror choice dead ends
 function handleMirrorChoice(choice) {
     if (choice.includes('approach')) {
         messages.push(`You step toward a mirror where your reflection smiles warmly. As you touch the glass, a memory unfolds—a cherished moment with a loved one. Tears well in your eyes as you realize how much you've forgotten.`);
         gameState.cluesFound.push('mirrorMemory');
         gameState.visitedScenes.mirrors = true;
-        typeNextMessage(continueExploration);
+        typeNextMessage(() => {
+            messages.push(`Do you wish to 'examine' more mirrors, 'continue' exploring, or 'reflect' on what you've seen?`);
+            typeNextMessage(() => {
+                getUserInput(handleMirrorExploration);
+            });
+        });
     } else if (choice.includes('look away')) {
         messages.push(`Unnerved by the reflections, you turn away. The feeling of disconnection deepens, and you question what you might be missing.`);
-        typeNextMessage(continueExploration);
+        typeNextMessage(() => {
+            messages.push(`Do you wish to 'reconsider' looking at the mirrors, 'continue' exploring, or 'return' to the entrance?`);
+            typeNextMessage(() => {
+                getUserInput(handleMirrorAvoidance);
+            });
+        });
+    } else if (choice.includes('return')) {
+        messages.push(`You step back toward the entrance, though the mirrors' reflections still catch your eye.`);
+        typeNextMessage(() => {
+            encounterShadowLibrarian();
+        });
     } else {
-        messages.push(`The mirrors reflect countless versions of you. Do you 'approach' a mirror or 'look away'?`);
+        messages.push(`The mirrors reflect countless versions of you. Do you 'approach' a mirror, 'look away', or 'return' to the entrance?`);
         typeNextMessage(() => {
             getUserInput(handleMirrorChoice);
         });
     }
 }
 
-// Continue exploration
+// New function to handle mirror exploration
+function handleMirrorExploration(choice) {
+    if (choice.includes('examine')) {
+        messages.push(`Each mirror reveals different fragments of your past, building a tapestry of memories.`);
+        gameState.cluesFound.push('mirrorRecollections');
+        typeNextMessage(continueExploration);
+    } else if (choice.includes('continue')) {
+        continueExploration();
+    } else if (choice.includes('reflect')) {
+        messages.push(`You take time to process the memories you've recovered.`);
+        typeNextMessage(checkForEnding);
+    } else {
+        messages.push(`Do you wish to 'examine' more mirrors, 'continue' exploring, or 'reflect' on what you've seen?`);
+        typeNextMessage(() => {
+            getUserInput(handleMirrorExploration);
+        });
+    }
+}
+
+// New function to handle mirror avoidance
+function handleMirrorAvoidance(choice) {
+    if (choice.includes('reconsider')) {
+        handleMirrorChoice('approach');
+    } else if (choice.includes('continue')) {
+        continueExploration();
+    } else if (choice.includes('return')) {
+        messages.push(`You return to the library entrance, carrying the weight of unexamined memories.`);
+        typeNextMessage(() => {
+            encounterShadowLibrarian();
+        });
+    } else {
+        messages.push(`Do you wish to 'reconsider' looking at the mirrors, 'continue' exploring, or 'return' to the entrance?`);
+        typeNextMessage(() => {
+            getUserInput(handleMirrorAvoidance);
+        });
+    }
+}
+
+// Modified to enhance continued exploration
 function continueExploration() {
     messages.push(`Leaving the hall of mirrors, you find a narrow staircase spiraling upward. A faint melody drifts from above—a song you vaguely remember.
 
-Do you 'ascend' the staircase or 'stay' where you are?`);
+Do you 'ascend' the staircase, 'explore' the current floor, or 'return' to the previous area?`);
     typeNextMessage(() => {
         getUserInput(handleStaircaseChoice);
     });
 }
 
+// Modified to prevent staircase choice dead ends
 function handleStaircaseChoice(choice) {
     if (choice.includes('ascend')) {
         messages.push(`You climb the staircase, each step resonating with the melody. At the top, you enter a cozy room filled with familiar objects—a journal, a musical instrument, photographs. It's as if you've stepped into a personal sanctuary.`);
         gameState.cluesFound.push('sanctuary');
         gameState.visitedScenes.sanctuary = true;
-        typeNextMessage(checkForEnding);
-    } else if (choice.includes('stay')) {
-        messages.push(`You decide not to ascend, and the melody fades away, leaving you with an unsettling silence.`);
-        // Offer an alternative path or additional choices
-        messages.push(`Do you wish to 'explore' further or 'rest' here?`);
         typeNextMessage(() => {
-            getUserInput(handleAlternativeEndingChoice);
+            messages.push(`Do you wish to 'examine' the objects, 'play' the instrument, or 'descend' the stairs?`);
+            typeNextMessage(() => {
+                getUserInput(handleSanctuaryChoice);
+            });
         });
+    } else if (choice.includes('explore')) {
+        messages.push(`You decide to explore the current floor further.`);
+        typeNextMessage(() => {
+            handleShadowInvestigation('investigate');
+        });
+    } else if (choice.includes('return')) {
+        messages.push(`You return to the previous area.`);
+        typeNextMessage(proceedToNextSection);
     } else {
-        messages.push(`The choice weighs on you. Do you 'ascend' the staircase or 'stay' where you are?`);
+        messages.push(`Do you 'ascend' the staircase, 'explore' the current floor, or 'return' to the previous area?`);
         typeNextMessage(() => {
             getUserInput(handleStaircaseChoice);
         });
     }
 }
 
+// New function to handle sanctuary choices
+function handleSanctuaryChoice(choice) {
+    if (choice.includes('examine')) {
+        messages.push(`Each object tells a story, revealing pieces of your past.`);
+        gameState.cluesFound.push('personalHistory');
+        typeNextMessage(checkForEnding);
+    } else if (choice.includes('play')) {
+        messages.push(`The music awakens deep memories, filling the sanctuary with familiar melodies.`);
+        gameState.cluesFound.push('musicalMemories');
+        typeNextMessage(checkForEnding);
+    } else if (choice.includes('descend')) {
+        messages.push(`You return down the staircase, the melody following you.`);
+        typeNextMessage(continueExploration);
+    } else {
+        messages.push(`Do you wish to 'examine' the objects, 'play' the instrument, or 'descend' the stairs?`);
+        typeNextMessage(() => {
+            getUserInput(handleSanctuaryChoice);
+        });
+    }
+}
+
 function handleAlternativeEndingChoice(choice) {
     if (choice.includes('explore')) {
-        messages.push(`Determined to uncover the secrets of this place, you venture back into the labyrinth of bookshelves. Perhaps with time, you'll find the answers you seek.`);
-        isGameOver = true; // End the game with an open ending
-        typeNextMessage();
+        messages.push(`You venture back into the labyrinth of bookshelves, determined to uncover more of the library's mysteries.`);
+        typeNextMessage(() => {
+            handleShadowInvestigation('investigate');
+        });
     } else if (choice.includes('rest')) {
-        messages.push(`You decide to rest, allowing the silence of the library to envelop you. Maybe in stillness, the answers will come.`);
-        isGameOver = true; // End the game with an open ending
-        typeNextMessage();
+        messages.push(`You decide to rest, allowing the silence of the library to envelop you. Maybe in stillness, the answers will come.
+
+Do you wish to 'continue' your journey or accept this moment of peace?`);
+        typeNextMessage(() => {
+            getUserInput(handleFinalRestChoice);
+        });
     } else {
         messages.push(`The choice is yours. Do you wish to 'explore' further or 'rest' here?`);
         typeNextMessage(() => {
             getUserInput(handleAlternativeEndingChoice);
         });
     }
+}// New function to handle final rest choice
+function handleFinalRestChoice(choice) {
+    if (choice.includes('continue')) {
+        messages.push(`Refreshed from your moment of rest, you stand to continue your journey.`);
+        typeNextMessage(() => {
+            handleShadowInvestigation('investigate');
+        });
+    } else {
+        messages.push(`You embrace the peaceful moment, finding acceptance in the quiet.
+        
+**A moment of peace...**`);
+        isGameOver = true;
+        typeNextMessage();
+    }
 }
 
-// Face obstacle alone
+// Modified to prevent dead end
 function faceObstacleAlone() {
     messages.push(`Without guidance, you wander deeper into the library. The shelves twist and turn, leading you to a dead-end where a heavy door stands before you, adorned with intricate symbols.
 
-Do you 'open' the door or 'turn back'?`);
+Do you 'open' the door, 'turn back', or 'examine' the symbols?`);
     typeNextMessage(() => {
         getUserInput(handleObstacleDoorChoice);
     });
 }
 
+// Modified to prevent forced confrontation
 function handleObstacleDoorChoice(choice) {
     if (choice.includes('open')) {
         messages.push(`You push the door open and enter a dimly lit chamber. The walls are lined with portraits whose eyes seem to follow you. In the center stands a pedestal with an open book emitting a soft glow.`);
-        typeNextMessage(triggerFinalConfrontation);
+        typeNextMessage(() => {
+            messages.push(`Do you wish to 'approach' the book, 'study' the portraits, or 'leave' the chamber?`);
+            typeNextMessage(() => {
+                getUserInput(handleChamberChoice);
+            });
+        });
     } else if (choice.includes('turn')) {
-        messages.push(`You decide not to enter, but as you turn, the path behind you has vanished. You're trapped.`);
-        playNegativeSound();
-        typeNextMessage(triggerFinalConfrontation);
+        messages.push(`As you turn back, you notice new paths have appeared in the library.`);
+        typeNextMessage(() => {
+            messages.push(`Do you wish to 'explore' these new paths or 'return' to the entrance?`);
+            typeNextMessage(() => {
+                getUserInput(handleNewPathChoice);
+            });
+        });
+    } else if (choice.includes('examine')) {
+        messages.push(`The symbols seem to tell a story - your story. Memories begin to surface as you trace them with your fingers.`);
+        gameState.cluesFound.push('symbolMemories');
+        typeNextMessage(() => {
+            messages.push(`Do you wish to 'open' the door now or 'continue' examining the symbols?`);
+            typeNextMessage(() => {
+                getUserInput(handleSymbolChoice);
+            });
+        });
     } else {
-        messages.push(`Time is running out. Do you 'open' the door or 'turn back'?`);
+        messages.push(`The door awaits your decision. Do you 'open' it, 'turn back', or 'examine' the symbols?`);
         typeNextMessage(() => {
             getUserInput(handleObstacleDoorChoice);
         });
     }
 }
 
-// Check for ending
+// New function to handle chamber choices
+function handleChamberChoice(choice) {
+    if (choice.includes('approach')) {
+        messages.push(`As you near the glowing book, its pages begin to turn on their own, revealing glimpses of your past.`);
+        typeNextMessage(triggerFinalConfrontation);
+    } else if (choice.includes('study')) {
+        messages.push(`The portraits show familiar faces - people from your past, each holding a piece of your story.`);
+        gameState.cluesFound.push('portraitMemories');
+        typeNextMessage(() => {
+            messages.push(`Do you wish to 'continue' studying the portraits or 'approach' the book now?`);
+            typeNextMessage(() => {
+                getUserInput(handlePortraitChoice);
+            });
+        });
+    } else if (choice.includes('leave')) {
+        messages.push(`You step back from the chamber, but carry its revelations with you.`);
+        typeNextMessage(() => {
+            handleShadowInvestigation('investigate');
+        });
+    } else {
+        messages.push(`Do you wish to 'approach' the book, 'study' the portraits, or 'leave' the chamber?`);
+        typeNextMessage(() => {
+            getUserInput(handleChamberChoice);
+        });
+    }
+}
+
+// New function to handle portrait choice
+function handlePortraitChoice(choice) {
+    if (choice.includes('continue')) {
+        messages.push(`Each portrait reveals more memories, building a clearer picture of your past.`);
+        gameState.cluesFound.push('deeperPortraitMemories');
+        typeNextMessage(checkForEnding);
+    } else if (choice.includes('approach')) {
+        messages.push(`You turn your attention to the glowing book at the center of the room.`);
+        typeNextMessage(triggerFinalConfrontation);
+    } else {
+        messages.push(`Do you wish to 'continue' studying the portraits or 'approach' the book now?`);
+        typeNextMessage(() => {
+            getUserInput(handlePortraitChoice);
+        });
+    }
+}
+
+// New function to handle new path choice
+function handleNewPathChoice(choice) {
+    if (choice.includes('explore')) {
+        messages.push(`You venture down one of the new paths, curious about where it might lead.`);
+        typeNextMessage(() => {
+            handleShadowInvestigation('investigate');
+        });
+    } else if (choice.includes('return')) {
+        messages.push(`You make your way back to the library's entrance.`);
+        typeNextMessage(() => {
+            encounterShadowLibrarian();
+        });
+    } else {
+        messages.push(`Do you wish to 'explore' these new paths or 'return' to the entrance?`);
+        typeNextMessage(() => {
+            getUserInput(handleNewPathChoice);
+        });
+    }
+}
+
+// New function to handle symbol choice
+function handleSymbolChoice(choice) {
+    if (choice.includes('open')) {
+        messages.push(`With newfound understanding from the symbols, you open the door.`);
+        typeNextMessage(() => {
+            handleObstacleDoorChoice('open');
+        });
+    } else if (choice.includes('continue')) {
+        messages.push(`You continue studying the symbols, each one revealing more about your journey.`);
+        gameState.cluesFound.push('deeperSymbolMemories');
+        typeNextMessage(checkForEnding);
+    } else {
+        messages.push(`Do you wish to 'open' the door now or 'continue' examining the symbols?`);
+        typeNextMessage(() => {
+            getUserInput(handleSymbolChoice);
+        });
+    }
+}
+
+// Modified check for ending to include more nuanced paths
 function checkForEnding() {
     let cluesFoundDescriptions = gameState.cluesFound.map(clue => clueDescriptions[clue]);
     let cluesCount = cluesFoundDescriptions.length;
 
     if (cluesCount >= 3) {
-        // Player has found enough clues to realize the truth
         let message = `As you piece together the fragments of your journey—${cluesFoundDescriptions.join(', ')}—a realization begins to take shape. This library isn't just a physical place; it's a labyrinth of your own mind, housing your memories, emotions, and experiences.
 
 Fragments of a traumatic event flash before your eyes—a blinding light, screeching tires, shattered glass. The weight of sorrow presses upon you as you recall the loss of someone dear.
 
 You find yourself before a grand door inscribed with your name. The air is thick with anticipation.
 
-Do you 'enter' to confront the truth or 'stay' in the familiarity of the library?`;
+Do you 'enter' to confront the truth, 'reflect' on your discoveries, or 'wait' for more understanding?`;
 
         messages.push(message);
         typeNextMessage(() => {
-            getUserInput(handleFinalDecision);
+            getUserInput(handleEnhancedFinalDecision);
         });
     } else {
-        // Player hasn't found enough clues; provide alternative paths or an ambiguous ending
-        let message = `Despite your efforts, the mysteries of the library remain unsolved. You feel a persistent emptiness, a yearning to understand more.
+        let message = `Despite your discoveries, you sense there are more truths to uncover. The library seems to hold deeper mysteries.
 
-You find yourself back at the entrance of the library. The endless aisles stretch out before you, inviting yet daunting.
-
-Do you wish to 'explore' further or 'rest' here?`;
+Do you wish to 'continue' exploring, 'review' what you've learned, or 'rest' here?`;
 
         messages.push(message);
         typeNextMessage(() => {
-            getUserInput(handleAlternativeEndingChoice);
+            getUserInput(handleIncompletePath);
         });
     }
 }
 
+// New function to handle incomplete path
+function handleIncompletePath(choice) {
+    if (choice.includes('continue')) {
+        messages.push(`You press on, knowing there are more pieces to this puzzle.`);
+        typeNextMessage(() => {
+            handleShadowInvestigation('investigate');
+        });
+    } else if (choice.includes('review')) {
+        messages.push(`You take time to process everything you've discovered so far.`);
+        typeNextMessage(() => {
+            handleAlternativeEndingChoice('explore');
+        });
+    } else if (choice.includes('rest')) {
+        handleAlternativeEndingChoice('rest');
+    } else {
+        messages.push(`Do you wish to 'continue' exploring, 'review' what you've learned, or 'rest' here?`);
+        typeNextMessage(() => {
+            getUserInput(handleIncompletePath);
+        });
+    }
+}
+
+// New function to handle enhanced final decision
+function handleEnhancedFinalDecision(choice) {
+    if (choice.includes('enter')) {
+        handleFinalDecision('enter');
+    } else if (choice.includes('reflect')) {
+        messages.push(`You take time to reflect on your journey, processing the weight of your discoveries.`);
+        typeNextMessage(() => {
+            messages.push(`Do you now feel ready to 'enter' and face the truth, or do you wish to 'wait' longer?`);
+            typeNextMessage(() => {
+                getUserInput(handleFinalReflection);
+            });
+        });
+    } else if (choice.includes('wait')) {
+        messages.push(`You decide to wait, feeling the need for more time to prepare yourself.`);
+        typeNextMessage(() => {
+            handleAlternativeEndingChoice('explore');
+        });
+    } else {
+        messages.push(`Do you 'enter' to confront the truth, 'reflect' on your discoveries, or 'wait' for more understanding?`);
+        typeNextMessage(() => {
+            getUserInput(handleEnhancedFinalDecision);
+        });
+    }
+}
+
+// New function to handle final reflection
+function handleFinalReflection(choice) {
+    if (choice.includes('enter')) {
+        handleFinalDecision('enter');
+    } else if (choice.includes('wait')) {
+        handleAlternativeEndingChoice('explore');
+    } else {
+        messages.push(`Do you now feel ready to 'enter' and face the truth, or do you wish to 'wait' longer?`);
+        typeNextMessage(() => {
+            getUserInput(handleFinalReflection);
+        });
+    }
+}
+
+// Modified final functions remain largely the same but with enhanced feedback
 function handleFinalDecision(choice) {
     if (choice.includes('enter')) {
         messages.push(`With a heavy heart, you push open the door. A torrent of memories floods back—the accident, the guilt, the unbearable grief. You realize you've been trapped within your own mind, hiding from the pain of losing someone you loved.
@@ -756,15 +1259,15 @@ Tears stream down your face as you confront the reality you've been avoiding. Th
 You understand now that to heal, you must face the sorrow and allow yourself to grieve.
 
 **The End**`);
-        isGameOver = true; // Set game over flag
+        isGameOver = true;
         typeNextMessage();
     } else if (choice.includes('stay')) {
-        messages.push(`You step back from the door, unable to face the painful truth. The library offers solace in its endless corridors and forgotten memories.
+        messages.push(`You step back from the door, the weight of truth still heavy in your heart. The library offers solace in its endless corridors and forgotten memories.
 
 Perhaps, in time, you'll find the courage to confront what lies beyond.
 
 **To be continued...**`);
-        isGameOver = true; // Set game over flag
+        isGameOver = true;
         typeNextMessage();
     } else {
         messages.push(`The choice is yours. Do you 'enter' to confront the truth or 'stay' in the library?`);
@@ -774,49 +1277,39 @@ Perhaps, in time, you'll find the courage to confront what lies beyond.
     }
 }
 
-// Trigger final confrontation
+// Final confrontation remains similar but with more options
 function triggerFinalConfrontation() {
     messages.push(`A shadowy figure materializes before you, its form shifting and ethereal. "You cannot run from yourself," it whispers. "I am the embodiment of all you've forgotten and all you've tried to escape."
 
 Memories of the accident surface—the moments you tried so hard to suppress.
 
-Do you choose to 'accept' this part of yourself or 'reject' it?`);
+Do you choose to 'accept' this part of yourself, 'question' the shadow further, or 'reject' it?`);
     typeNextMessage(() => {
-        getUserInput(handleFinalChoice);
+        getUserInput(handleEnhancedFinalChoice);
     });
 }
 
-function handleFinalChoice(choice) {
+// New function to handle enhanced final choice
+function handleEnhancedFinalChoice(choice) {
     if (choice.includes('accept')) {
-        messages.push(`You step forward and embrace the shadow. A profound sadness washes over you as you allow yourself to feel the grief you've been avoiding.
+        handleFinalChoice('accept');
+    } else if (choice.includes('question')) {
+        messages.push(`"Why now?" you ask. The shadow's form ripples. "Because you are finally ready to remember, to heal."
 
-"I'm so sorry," you whisper, tears falling freely.
-
-The shadow merges with you, and the library transforms into scenes from your life—both joyful and sorrowful.
-
-You understand that healing begins with acceptance.
-
-**You have become whole.**
-
-**The End**`);
-        isGameOver = true; // Set game over flag
-        typeNextMessage();
-    } else if (choice.includes('reject')) {
-        messages.push(`You turn away, refusing to acknowledge the shadow. The weight of unspoken grief bears down on you, and the library's walls close in.
-
-You find yourself back at the beginning, destined to wander until you're ready to face the truth.
-
-**To be continued...**`);
-        isGameOver = true; // Set game over flag
-        playNegativeSound();
-        typeNextMessage();
-    } else {
-        messages.push(`The shadow waits silently. Do you 'accept' this part of yourself or 'reject' it?`);
+Do you now choose to 'accept' this truth or 'reject' it?`);
         typeNextMessage(() => {
             getUserInput(handleFinalChoice);
         });
+    } else if (choice.includes('reject')) {
+        handleFinalChoice('reject');
+    } else {
+        messages.push(`Do you choose to 'accept' this part of yourself, 'question' the shadow further, or 'reject' it?`);
+        typeNextMessage(() => {
+            getUserInput(handleEnhancedFinalChoice);
+        });
     }
 }
+
 
 // Function to display the ending message using the typewriter effect
 function displayEndingMessage() {
@@ -878,6 +1371,3 @@ function handleRestartChoice(choice) {
         });
     }
 }
-
-
-
